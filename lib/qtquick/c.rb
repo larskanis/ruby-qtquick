@@ -18,6 +18,9 @@ require 'ffi/inline'
 
 module QtQuick
 module C
+  OLD_FFI_INLINER_PATH = ENV['FFI_INLINER_PATH']
+  ENV['FFI_INLINER_PATH'] = File.expand_path('../.libs', __FILE__)
+
   extend FFI::Inline
 
   inline 'C++' do |cpp|
@@ -205,5 +208,7 @@ module C
       }
     }
   end
+
+  ENV['FFI_INLINER_PATH'] = OLD_FFI_INLINER_PATH
 end
 end

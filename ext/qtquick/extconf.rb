@@ -1,12 +1,11 @@
 #!/bin/env ruby
-
-require 'fileutils'
 require 'mkmf'
 
-# This directive processes the "--with-fox-include" and "--with-fox-lib"
-# command line switches and modifies the CFLAGS and LDFLAGS accordingly.
+# This directive processes the "--with-qt-include" and "--with-qt-lib"
+qt_inc, qt_lib = dir_config('qt', '/opt/qt5/include', '/opt/qt5/lib')
 
-dir_config('qt', '/opt/qt5/include', '/opt/qt5/lib')
+# Patch RbConfig to make have_header() use g++:
+RbConfig::CONFIG['CPP'].gsub!( RbConfig::CONFIG['CC'], RbConfig::CONFIG['CXX'] )
 
 [
   'QtWidgets/QApplication',
@@ -15,12 +14,20 @@ dir_config('qt', '/opt/qt5/include', '/opt/qt5/lib')
   'QtQuick/QQuickView',
   'QtQuick/QQuickItem',
 ].each do |header|
-#   have_header(header) || raise("header not found: #{header}")
+  have_header(header) || raise("header not found: #{header}")
 end
 
 ['QtCore', 'QtQml', 'QtWidgets', 'QtGui', 'QtQuick'].each do |lib|
-  have_library( lib ) && append_library( $libs, lib )
+  have_library(lib) || raise("library not found: #{lib}")
 end
 
-# Last step: build the makefile
-create_makefile("qtquick")
+ENV['CFLAGS'] = "-I#{qt_inc}"
+ENV['LDFLAGS'] = "-L#{qt_lib}"
+begin
+  load File.expand_path('../../../lib/qtquick/c.rb', __FILE__)
+rescue CompilationError => err
+  $stderr.puts err.log
+else
+  # Generate dummy Makefile to avoid extconf error
+  create_makefile("qtquick")
+end
