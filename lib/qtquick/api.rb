@@ -95,7 +95,9 @@ class QQuickItem < ManagedPtr
   def property(name)
     qvar = C.QQuickItem_property(@ptr, name)
     case typeName=C.QVariant_typeName( qvar )
-      when 'QString' then C.QVariant_toString( qvar )
+      when 'QString' then
+        qcs = C.QVariant_toCharString( qvar )
+        qcs[:p].read_bytes(qcs[:l]*2).force_encoding(Encoding::UTF_16LE)
       when 'QColor' then C.QVariant_toString( qvar )
       when 'int' then C.QVariant_toInt( qvar )
       when 'double' then C.QVariant_toDouble( qvar )
@@ -165,7 +167,8 @@ class QString < ManagedPtr
   end
 
   def to_str
-    C.QString_toUtf8(@ptr)
+    qcs = C.QString_toCharString(@ptr)
+    qcs[:p].read_bytes(qcs[:l]*2).force_encoding(Encoding::UTF_16LE)
   end
   alias to_s to_str
 end

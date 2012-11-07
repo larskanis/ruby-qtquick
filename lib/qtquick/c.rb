@@ -35,6 +35,19 @@ module C
     cpp.raw IO.read(File.expand_path('../RubyQObject.h', __FILE__))
     cpp.raw IO.read(File.expand_path('../RubyQObject.cpp', __FILE__))
 
+    class QCharString < FFI::Struct
+      layout :l, :int,
+        :p, :pointer
+    end
+    cpp.raw %{
+      struct QCharString {
+        QCharString(int _l, QChar *_p) : l(_l), p(_p) {};
+        int l;
+        QChar *p;
+      };
+    }
+    cpp.map 'QCharString' => QCharString.by_value
+
     cpp.function %{
       QApplication *QApplication_new(int *argc, char **argv) {
         return new QApplication(*argc, argv);
@@ -155,10 +168,11 @@ module C
       }
     }, :return=>:string
     cpp.function %{
-      const char *QVariant_toString(QVariant *var){
-        return var->toString().toUtf8().constData();
+      QCharString QVariant_toCharString(QVariant *var){
+        QString string = var->toString();
+        return QCharString(string.length(), string.data());
       }
-    }, :return=>:string
+    }
     cpp.function %{
       int QVariant_toInt(QVariant *var){
         return var->toInt();
@@ -181,10 +195,10 @@ module C
       }
     }
     cpp.function %{
-      const char *QString_toUtf8(QString *string){
-        return string->toUtf8().constData();
+      QCharString QString_toCharString(QString *string){
+        return QCharString(string->length(), string->data());
       }
-    }, :return=>:string
+    }
 
     cpp.function %{
       RubyQObject *RubyQObject_new(QObject *parent) {
