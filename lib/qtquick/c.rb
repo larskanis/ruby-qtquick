@@ -168,6 +168,11 @@ module C
       }
     }, :return=>:string
     cpp.function %{
+      QString *QVariant_toQString(QVariant *var){
+        return new QString(var->toString());
+      }
+    }
+    cpp.function %{
       QCharString QVariant_toCharString(QVariant *var){
         QString string = var->toString();
         return QCharString(string.length(), string.data());

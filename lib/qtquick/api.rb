@@ -95,10 +95,8 @@ class QQuickItem < ManagedPtr
   def property(name)
     qvar = C.QQuickItem_property(@ptr, name)
     case typeName=C.QVariant_typeName( qvar )
-      when 'QString' then
-        qcs = C.QVariant_toCharString( qvar )
-        qcs[:p].read_bytes(qcs[:l]*2).force_encoding(Encoding::UTF_16LE)
-      when 'QColor' then C.QVariant_toString( qvar )
+      when 'QString' then QString.new(qvar, :gc=>false).to_str
+      when 'QColor' then QString.new(C.QVariant_toQString( qvar )).to_str
       when 'int' then C.QVariant_toInt( qvar )
       when 'double' then C.QVariant_toDouble( qvar )
       else raise "QVariant type #{typeName} not implemented"
@@ -157,18 +155,18 @@ class QQmlContext < ManagedPtr
 end
 
 class QString < ManagedPtr
-  def initialize(string)
+  def initialize(string, params={:gc=>true})
     if string.kind_of?(FFI::Pointer)
       @ptr = string
     else
       @ptr = C.QString_new string
-      on_delete(:QString_delete)
     end
+    on_delete(:QString_delete) if params[:gc]
   end
 
   def to_str
     qcs = C.QString_toCharString(@ptr)
-    qcs[:p].read_bytes(qcs[:l]*2).force_encoding(Encoding::UTF_16LE)
+    qcs[:p].read_bytes(qcs[:l]*2).force_encoding(Encoding::UTF_16LE).encode!(Encoding::UTF_8)
   end
   alias to_s to_str
 end
@@ -186,7 +184,7 @@ class RubyQObject < ManagedPtr
       args = argtypes.map.with_index(1) do |argtype, argi|
         offset = argi * FFI.type_size(:pointer)
         case argtype
-          when 'QString' then QString.new(pargs.get_pointer(offset)).to_str
+          when 'QString' then QString.new(pargs.get_pointer(offset), :gc=>false).to_str
           when 'int' then pargs.get_pointer(offset).read_int
           when 'double' then pargs.get_pointer(offset).read_double
           else raise "Parameter type #{argtype} not implemented"
