@@ -27,6 +27,9 @@ begin
   load File.expand_path('../../../lib/qtquick/c.rb', __FILE__)
 rescue CompilationError => err
   $stderr.puts err.log
+rescue LoadError => err
+  $stderr.puts err
+  $stderr.puts "Library loading failed. Please ensure that #{qt_lib} is in your system library paths or set LD_LIBRARY_PATH accordingly."
 else
   # Generate dummy Makefile to avoid extconf error
   create_makefile("qtquick")
