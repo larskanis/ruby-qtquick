@@ -8,11 +8,10 @@ qt_inc, qt_lib = dir_config('qt', '/opt/qt5/include', '/opt/qt5/lib')
 RbConfig::CONFIG['CPP'].gsub!( RbConfig::CONFIG['CC'], RbConfig::CONFIG['CXX'] )
 
 [
-  'QtWidgets/QApplication',
-  'QtWidgets/QApplication',
+  'QtGui/QGuiApplication',
   'QtCore/QString',
   'QtQuick/QQuickView',
-  'QtQuick/QQuickItem',
+  'QtQml/QQmlContext'
 ].each do |header|
   have_header(header) || raise("header not found: #{header}")
 end

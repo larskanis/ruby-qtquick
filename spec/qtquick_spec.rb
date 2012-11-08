@@ -17,7 +17,7 @@ require 'qtquick'
 
 describe QtQuick do
   before(:each) do
-    @qapp = QtQuick::QApplication.new(['testprog'])
+    $qapp ||= QtQuick::QGuiApplication.new(['testprog'])
     @qquick_view = QtQuick::QQuickView.new
 #     @qquick_view.show
     @qquick_view.setSource(File.expand_path('../application.qml', __FILE__))
@@ -25,7 +25,7 @@ describe QtQuick do
 
   after(:each) do
     @qquick_view.destroy
-    @qapp.destroy
+#     $qapp.destroy
   end
 
   it 'should provide property getter+setter' do
