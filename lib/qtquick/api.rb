@@ -23,6 +23,7 @@ module TypeConverter
       when 'QString' then QString.new(ptr, borrowed: true).to_str
       when 'int' then ptr.read_int
       when 'double' then ptr.read_double
+      when nil then nil
       else raise TypeError, "Type #{typeName} not implemented"
     end
   end
