@@ -30,6 +30,9 @@ describe QtQuick do
   end
 
   it 'should provide property getter+setter' do
+    @qquick_view.setProperty('resizeMode', 1).should be_true
+    @qquick_view.property('resizeMode').should == 1
+
     qquick_item = @qquick_view.rootObject
     qquick_item.property("color").should == '#ff0000'
     qquick_item.setProperty("color", "blue").should be_true

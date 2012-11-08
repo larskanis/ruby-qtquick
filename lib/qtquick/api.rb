@@ -15,20 +15,74 @@
 
 module QtQuick
 module TypeConverter
+  class TypeError < RuntimeError; end
+
   private
   def cpp_to_ruby(typeName, ptr)
     case typeName
       when 'QString' then QString.new(ptr, borrowed: true).to_str
       when 'int' then ptr.read_int
       when 'double' then ptr.read_double
-      else raise "Type #{typeName} not implemented"
+      else raise TypeError, "Type #{typeName} not implemented"
     end
+  end
+
+  def ruby_to_cpp(typeName, value)
+    case typeName
+      when 'QString' then
+        ptr = QString.new(value)
+      when 'int' then
+        ptr = FFI::MemoryPointer.new :int
+        ptr.write_int value
+      when 'double' then
+        ptr = FFI::MemoryPointer.new :double
+        ptr.write_double value
+      else raise TypeError, "Parameter type #{typeName} not implemented"
+    end
+    ptr
   end
 end
 
 class CppObject
+  include TypeConverter
+
   attr_accessor :ptr
   alias to_ptr ptr
+
+  def setProperty(name, value)
+    typeName = C.QObject_property_typeName(@ptr, name)
+    qvar = QVariant.new value, :typeName=>typeName
+    C.QObject_setProperty(@ptr, name, qvar.ptr)
+  end
+
+  def property(name)
+    qvar = QVariant.new C.QObject_property(@ptr, name)
+    begin
+      cpp_to_ruby(qvar.typeName, qvar.ptr)
+    rescue TypeConverter::TypeError
+      qvar.to_str
+    end
+  end
+
+  def onSignal(signal, &block)
+    rqo = RubyQObject.new
+    rqo.connectRubySlot self, signal, &block
+  end
+
+  def emit(signal, *args)
+    pargs = nil
+    ptrs = nil
+    block = proc do |argc, pargtypes|
+      pargs = FFI::MemoryPointer.new :pointer, argc+1
+      argtypes = pargtypes.get_array_of_string(0, argc)
+      ptrs = argtypes.map.with_index do |argtype, argi|
+        ruby_to_cpp(argtype, args[argi])
+      end
+      pargs.put_array_of_pointer(FFI.type_size(:pointer), ptrs)
+      pargs
+    end
+    C.QObject_emitSignal(@ptr, signal, block)
+  end
 
   def destroy
     C.send(@delete_method, @ptr)
@@ -103,8 +157,6 @@ class QQuickView < CppObject
 end
 
 class QQuickItem < CppObject
-  include TypeConverter
-
   def initialize(ptr_or_parent=nil, params={})
     @ptr = if ptr_or_parent.kind_of?(FFI::Pointer)
       ptr_or_parent
@@ -112,49 +164,6 @@ class QQuickItem < CppObject
       C.QQuickItem_new(ptr_or_parent && ptr_or_parent.ptr)
     end
     on_delete(:QQuickItem_delete) unless params[:borrowed]
-  end
-
-  def setProperty(name, value)
-    C.QQuickItem_setProperty(@ptr, name, value.to_s)
-  end
-
-  def property(name)
-    qvar = QVariant.new C.QQuickItem_property(@ptr, name)
-    case typename=qvar.typeName
-      when 'QColor' then qvar.to_str
-      else cpp_to_ruby(typename, qvar.ptr)
-    end
-  end
-
-  def onSignal(signal, &block)
-    rqo = RubyQObject.new
-    rqo.connectRubySlot self, signal, &block
-  end
-
-  def emit(signal, *args)
-    pargs = nil
-    ptrs = nil
-    block = proc do |argc, pargtypes|
-      pargs = FFI::MemoryPointer.new :pointer, argc+1
-      argtypes = pargtypes.get_array_of_string(0, argc)
-      ptrs = argtypes.map.with_index do |argtype, argi|
-        case argtype
-          when 'QString' then
-            ptr = QString.new(args[argi])
-          when 'int' then
-            ptr = FFI::MemoryPointer.new :int
-            ptr.write_int args[argi]
-          when 'double' then
-            ptr = FFI::MemoryPointer.new :double
-            ptr.write_double args[argi]
-          else raise "Parameter type #{argtype} not implemented"
-          ptr
-        end
-      end
-      pargs.put_array_of_pointer(FFI.type_size(:pointer), ptrs)
-      pargs
-    end
-    C.QQuickItem_emitSignal(@ptr, signal, block)
   end
 end
 
@@ -199,11 +208,22 @@ class QString < CppObject
 end
 
 class QVariant < CppObject
-  def initialize(ptr=nil, params={})
-    @ptr = if ptr.kind_of?(FFI::Pointer)
-      ptr
+  def initialize(ptr_or_value=nil, params={})
+    @ptr = if ptr_or_value.kind_of?(FFI::Pointer)
+      ptr_or_value
     else
-      C.QVariant_new
+      typeName = params[:typeName]
+      typeName ||= case ptr_or_value
+        when String then 'QString'
+        when Fixnum then 'int'
+        when Float then 'double'
+        else raise "Parameter type #{ptr_or_value.class} not implemented"
+      end
+      begin
+        C.QVariant_new_type C.QVariant_nameToType(typeName), ruby_to_cpp(typeName, ptr_or_value)
+      rescue TypeConverter::TypeError
+        C.QVariant_new_type C.QVariant_nameToType('QString'), ruby_to_cpp('QString', ptr_or_value.to_s)
+      end
     end
     on_delete(:QVariant_delete) unless params[:borrowed]
   end
@@ -227,8 +247,6 @@ class QVariant < CppObject
 end
 
 class RubyQObject < CppObject
-  include TypeConverter
-
   def initialize(ptr_or_parent=nil, params={})
     @ptr = if ptr_or_parent.kind_of?(FFI::Pointer)
       ptr_or_parent

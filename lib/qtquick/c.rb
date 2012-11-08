@@ -117,28 +117,38 @@ module C
       }
     }
     cpp.function %{
-      bool QQuickItem_setProperty(QQuickItem *item, char *key, char *value){
-        return item->setProperty(key, value);
+      bool QObject_setProperty(QObject *obj, char *key, QVariant *value){
+        return obj->setProperty(key, *value);
       }
     }
     cpp.function %{
-      QVariant *QQuickItem_property(QQuickItem *item, char *key){
-        return new QVariant(item->property(key));
+      QVariant *QObject_property(QObject *obj, char *key){
+        return new QVariant(obj->property(key));
       }
     }
     cpp.function %{
-      bool QQuickItem_emitSignal(QQuickItem *item, char *signal, RubySignalFunc func){
+      const char *QObject_property_typeName(QObject *obj, char *key){
+        QMetaProperty mp = obj->metaObject()->property(obj->metaObject()->indexOfProperty(key));
+        if(mp.isEnumType()){
+          return "int";
+        }else{
+          return mp.typeName();
+        }
+      }
+    }, return: :string
+    cpp.function %{
+      bool QObject_emitSignal(QObject *obj, char *signal, RubySignalFunc func){
         QByteArray theSignal = QMetaObject::normalizedSignature(signal);
-        int signalId = item->metaObject()->indexOfSignal(theSignal);
+        int signalId = obj->metaObject()->indexOfSignal(theSignal);
         if (signalId >= 0) {
-            QList<QByteArray> list = item->metaObject()->method(signalId).parameterTypes();
+            QList<QByteArray> list = obj->metaObject()->method(signalId).parameterTypes();
             QVector<const char*> vector(list.size());
             for (int i = 0; i < list.size(); ++i) {
               vector[i] = list.at(i).data();
             }
             void **arguments = (func)(list.size(), vector.data());
 
-            QMetaObject::activate(item, signalId, arguments);
+            QMetaObject::activate(obj, signalId, arguments);
             return true;
         } else {
             return false;
@@ -168,6 +178,11 @@ module C
     }
 
     cpp.function %{
+      QVariant *QVariant_new_type(int typeId, const void *copy){
+        return new QVariant(typeId, copy);
+      }
+    }
+    cpp.function %{
       void QVariant_delete(QVariant *var){
         delete var;
       }
@@ -183,12 +198,6 @@ module C
       }
     }
     cpp.function %{
-      QCharString QVariant_toCharString(QVariant *var){
-        QString string = var->toString();
-        return QCharString(string.length(), string.data());
-      }
-    }
-    cpp.function %{
       int QVariant_toInt(QVariant *var){
         return var->toInt();
       }
@@ -196,6 +205,11 @@ module C
     cpp.function %{
       double QVariant_toDouble(QVariant *var){
         return var->toDouble();
+      }
+    }
+    cpp.function %{
+      int QVariant_nameToType(const char *name){
+        return QVariant::nameToType(name);
       }
     }
 
