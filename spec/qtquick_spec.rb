@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 # This file is part of QtQuick for Ruby.
 #
 # QtQuick for Ruby is free software: you can redistribute it and/or modify
@@ -45,13 +46,13 @@ describe QtQuick do
       args = [msg, int, double]
     end
     qquick_item.setProperty("width", 10).should be_true
-    args.should == ['Hello Ruby!', 234, 10.0]
+    args.should == ['Hello Ruby! 人', 234, 10.0]
   end
 
   it 'should allow sending signals from Ruby to QML' do
     qquick_item = @qquick_view.rootObject
-    qquick_item.emit 'rubySignal(QString, int, double)', 'Hello QML!', 678, 345.2
-    qquick_item.property("hello_string").should == 'Hello QML!'
+    qquick_item.emit 'rubySignal(QString, int, double)', 'Hello QML! 人', 678, 345.2
+    qquick_item.property("hello_string").should == 'Hello QML! 人'
     qquick_item.property("hello_int").should == 678
     qquick_item.property("hello_double").should be_within(0.1).of(345.2)
   end

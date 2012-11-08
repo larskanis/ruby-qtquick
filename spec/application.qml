@@ -1,3 +1,4 @@
+// -*- coding: UTF-8 -*-
 /* This file is part of QtQuick for Ruby.
  *
  * QtQuick for Ruby is free software: you can redistribute it and/or modify
@@ -31,5 +32,5 @@ Rectangle {
     hello_int = bb
     hello_double = aa
   }
-  onWidthChanged: item.qmlSignal("Hello Ruby!", 234, width)
+  onWidthChanged: item.qmlSignal("Hello Ruby! 人", 234, width)
 }
