@@ -107,6 +107,11 @@ module C
     }
 
     cpp.function %{
+      QQuickItem *QQuickItem_new(QQuickItem *parent){
+        return new QQuickItem(parent);
+      }
+    }
+    cpp.function %{
       void QQuickItem_delete(QQuickItem *item){
         delete item;
       }
@@ -141,6 +146,11 @@ module C
       }
     }
 
+    cpp.function %{
+      QQmlContext *QQmlContext_new(QQmlEngine *engine, QObject *parent){
+        return new QQmlContext(engine, parent);
+      }
+    }
     cpp.function %{
       void QQmlContext_delete(QQmlContext *item){
         delete item;

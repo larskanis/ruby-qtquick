@@ -14,7 +14,7 @@
 # along with QtQuick for Ruby.  If not, see <http://www.gnu.org/licenses/>.
 
 module QtQuick
-class ManagedPtr
+class CppObject
   attr_accessor :ptr
   alias to_ptr ptr
 
@@ -37,15 +37,19 @@ class ManagedPtr
   end
 end
 
-class QApplication < ManagedPtr
-  def initialize(argv)
-    @ary_ptr = FFI::MemoryPointer.new :pointer, argv.length+1
-    @ary_strings = argv.map{|arg| FFI::MemoryPointer.from_string arg }
-    @ary_ptr.write_array_of_pointer(@ary_strings)
-    @argc_ptr = FFI::MemoryPointer.new :int
-    @argc_ptr.write_int @ary_strings.length
-    @ptr = C.QApplication_new(@argc_ptr, @ary_ptr)
-    on_delete(:QApplication_delete)
+class QApplication < CppObject
+  def initialize(ptr_or_argv, params={})
+    @ptr = if ptr_or_argv.kind_of?(FFI::Pointer)
+      ptr_or_argv
+    else
+      @ary_ptr = FFI::MemoryPointer.new :pointer, ptr_or_argv.length+1
+      @ary_strings = ptr_or_argv.map{|arg| FFI::MemoryPointer.from_string arg }
+      @ary_ptr.write_array_of_pointer(@ary_strings)
+      @argc_ptr = FFI::MemoryPointer.new :int
+      @argc_ptr.write_int @ary_strings.length
+      C.QApplication_new(@argc_ptr, @ary_ptr)
+    end
+    on_delete(:QApplication_delete) unless params[:borrowed]
   end
 
   def exec
@@ -59,10 +63,14 @@ class QApplication < ManagedPtr
   end
 end
 
-class QQuickView < ManagedPtr
-  def initialize
-    @ptr = C.QQuickView_new
-    on_delete(:QQuickView_delete)
+class QQuickView < CppObject
+  def initialize(ptr=nil, params={})
+    @ptr = if ptr.kind_of?(FFI::Pointer)
+      ptr
+    else
+      C.QQuickView_new
+    end
+    on_delete(:QQuickView_delete) unless params[:borrowed]
   end
 
   def setSource(file)
@@ -74,18 +82,22 @@ class QQuickView < ManagedPtr
   end
 
   def rootObject
-    QQuickItem.new C.QQuickView_rootObject(@ptr)
+    QQuickItem.new C.QQuickView_rootObject(@ptr), borrowed: true
   end
 
   def rootContext
-    QQmlContext.new C.QQuickView_rootContext(@ptr)
+    QQmlContext.new C.QQuickView_rootContext(@ptr), borrowed: true
   end
 end
 
-class QQuickItem < ManagedPtr
-  def initialize(ptr)
-    @ptr = ptr
-#     on_delete(:QQuickItem_delete)
+class QQuickItem < CppObject
+  def initialize(ptr_or_parent=nil, params={})
+    @ptr = if ptr_or_parent.kind_of?(FFI::Pointer)
+      ptr_or_parent
+    else
+      C.QQuickItem_new(ptr_or_parent && ptr_or_parent.ptr)
+    end
+    on_delete(:QQuickItem_delete) unless params[:borrowed]
   end
 
   def setProperty(name, value)
@@ -95,7 +107,7 @@ class QQuickItem < ManagedPtr
   def property(name)
     qvar = C.QQuickItem_property(@ptr, name)
     case typeName=C.QVariant_typeName( qvar )
-      when 'QString' then QString.new(qvar, :gc=>false).to_str
+      when 'QString' then QString.new(qvar, borrowed: true).to_str
       when 'QColor' then QString.new(C.QVariant_toQString( qvar )).to_str
       when 'int' then C.QVariant_toInt( qvar )
       when 'double' then C.QVariant_toDouble( qvar )
@@ -135,10 +147,14 @@ class QQuickItem < ManagedPtr
   end
 end
 
-class QQmlContext < ManagedPtr
-  def initialize(ptr)
-    @ptr = ptr
-#     on_delete(:QQmlContext_delete)
+class QQmlContext < CppObject
+  def initialize(ptr_or_engine, params={})
+    @ptr = if ptr_or_parent.kind_of?(FFI::Pointer)
+      ptr_or_parent
+    else
+      C.QQmlContext_new(ptr_or_engine.ptr)
+    end
+    on_delete(:QQmlContext_delete) unless params[:borrowed]
   end
 
   def setContextProperty(name, value)
@@ -154,14 +170,14 @@ class QQmlContext < ManagedPtr
   end
 end
 
-class QString < ManagedPtr
-  def initialize(string, params={:gc=>true})
-    if string.kind_of?(FFI::Pointer)
-      @ptr = string
+class QString < CppObject
+  def initialize(ptr_or_string, params={})
+    @ptr = if ptr_or_string.kind_of?(FFI::Pointer)
+      ptr_or_string
     else
-      @ptr = C.QString_new string
+      C.QString_new ptr_or_string
     end
-    on_delete(:QString_delete) if params[:gc]
+    on_delete(:QString_delete) unless params[:borrowed]
   end
 
   def to_str
@@ -171,10 +187,14 @@ class QString < ManagedPtr
   alias to_s to_str
 end
 
-class RubyQObject < ManagedPtr
-  def initialize(parent=nil)
-    @ptr = C.RubyQObject_new(parent)
-    on_delete(:RubyQObject_delete)
+class RubyQObject < CppObject
+  def initialize(ptr_or_parent=nil, params={})
+    @ptr = if ptr_or_parent.kind_of?(FFI::Pointer)
+      ptr_or_parent
+    else
+      C.RubyQObject_new(ptr_or_parent)
+    end
+    on_delete(:RubyQObject_delete) unless params[:borrowed]
     @procs = {}
   end
 
@@ -184,13 +204,13 @@ class RubyQObject < ManagedPtr
       args = argtypes.map.with_index(1) do |argtype, argi|
         offset = argi * FFI.type_size(:pointer)
         case argtype
-          when 'QString' then QString.new(pargs.get_pointer(offset), :gc=>false).to_str
+          when 'QString' then QString.new(pargs.get_pointer(offset), borrowed: true).to_str
           when 'int' then pargs.get_pointer(offset).read_int
           when 'double' then pargs.get_pointer(offset).read_double
           else raise "Parameter type #{argtype} not implemented"
         end
       end
-      yield QQuickItem.new(sender), *args
+      yield QQuickItem.new(sender, borrowed: true), *args
     end
     @procs[[obj.ptr, signal]] = block
     C.RubyQObject_connectRubySlot(@ptr, obj.ptr, signal, block)
