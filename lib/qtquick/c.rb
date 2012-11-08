@@ -24,13 +24,13 @@ module C
   extend FFI::Inline
 
   inline 'C++' do |cpp|
-    cpp.include 'QtGui/QGuiApplication'
+    cpp.include 'QtWidgets/QApplication'
     cpp.include 'QtCore/QString'
     cpp.include 'QtQuick/QQuickView'
     cpp.include 'QtQuick/QQuickItem'
     cpp.include 'QtQml/QQmlContext'
 
-    cpp.libraries 'QtCore', 'QtQml', 'QtGui', 'QtQuick'
+    cpp.libraries 'QtCore', 'QtQml', 'QtGui', 'QtQuick', 'QtWidgets'
 
     cpp.raw IO.read(File.expand_path('../RubyQObject.h', __FILE__))
     cpp.raw IO.read(File.expand_path('../RubyQObject.cpp', __FILE__))
@@ -49,27 +49,27 @@ module C
     cpp.map 'QCharString' => QCharString.by_value
 
     cpp.function %{
-      QGuiApplication *QGuiApplication_new(int *argc, char **argv) {
-        return new QGuiApplication(*argc, argv);
+      QApplication *QApplication_new(int *argc, char **argv) {
+        return new QApplication(*argc, argv);
       }
     }
     cpp.function %{
-      void QGuiApplication_delete(QGuiApplication *qapp) {
+      void QApplication_delete(QApplication *qapp) {
         delete qapp;
       }
     }
     cpp.function %{
-      int QGuiApplication_exec(QGuiApplication *qapp){
+      int QApplication_exec(QApplication *qapp){
         return qapp->exec();
       }
     }, :blocking => true
     cpp.function %{
-      void QGuiApplication_quit(QGuiApplication *qapp){
+      void QApplication_quit(QApplication *qapp){
         qapp->quit();
       }
     }
     cpp.function %{
-      void QGuiApplication_processEvents(QGuiApplication *qapp){
+      void QApplication_processEvents(QApplication *qapp){
         qapp->processEvents();
       }
     }

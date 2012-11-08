@@ -8,7 +8,7 @@ qt_inc, qt_lib = dir_config('qt', '/opt/qt5/include', '/opt/qt5/lib')
 RbConfig::CONFIG['CPP'].gsub!( RbConfig::CONFIG['CC'], RbConfig::CONFIG['CXX'] )
 
 [
-  'QtGui/QGuiApplication',
+  'QtWidgets/QApplication',
   'QtCore/QString',
   'QtQuick/QQuickView',
   'QtQml/QQmlContext'

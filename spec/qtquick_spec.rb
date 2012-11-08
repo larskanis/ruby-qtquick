@@ -18,7 +18,7 @@ require 'qtquick'
 
 describe QtQuick do
   before(:each) do
-    $qapp ||= QtQuick::QGuiApplication.new(['testprog'])
+    $qapp ||= QtQuick::QApplication.new(['testprog'])
     @qquick_view = QtQuick::QQuickView.new
 #     @qquick_view.show
     @qquick_view.setSource(File.expand_path('../application.qml', __FILE__))

@@ -49,7 +49,7 @@ class CppObject
   end
 end
 
-class QGuiApplication < CppObject
+class QApplication < CppObject
   def initialize(ptr_or_argv, params={})
     @ptr = if ptr_or_argv.kind_of?(FFI::Pointer)
       ptr_or_argv
@@ -59,19 +59,19 @@ class QGuiApplication < CppObject
       @ary_ptr.write_array_of_pointer(@ary_strings)
       @argc_ptr = FFI::MemoryPointer.new :int
       @argc_ptr.write_int @ary_strings.length
-      C.QGuiApplication_new(@argc_ptr, @ary_ptr)
+      C.QApplication_new(@argc_ptr, @ary_ptr)
     end
-    on_delete(:QGuiApplication_delete) unless params[:borrowed]
+    on_delete(:QApplication_delete) unless params[:borrowed]
   end
 
   def exec
-    C.QGuiApplication_exec(@ptr)
+    C.QApplication_exec(@ptr)
   end
   def quit
-    C.QGuiApplication_quit(@ptr)
+    C.QApplication_quit(@ptr)
   end
   def processEvents
-    C.QGuiApplication_processEvents(@ptr)
+    C.QApplication_processEvents(@ptr)
   end
 end
 
