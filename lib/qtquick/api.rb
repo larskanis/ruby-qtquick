@@ -148,11 +148,13 @@ class QQuickView < CppObject
   end
 
   def rootObject
-    QQuickItem.new C.QQuickView_rootObject(@ptr), borrowed: true
+    ptr = C.QQuickView_rootObject(@ptr)
+    QQuickItem.new ptr, borrowed: true unless ptr.null?
   end
 
   def rootContext
-    QQmlContext.new C.QQuickView_rootContext(@ptr), borrowed: true
+    ptr = C.QQuickView_rootContext(@ptr)
+    QQmlContext.new ptr, borrowed: true unless ptr.null?
   end
 end
 
