@@ -14,6 +14,18 @@
 # along with QtQuick for Ruby.  If not, see <http://www.gnu.org/licenses/>.
 
 module QtQuick
+module TypeConverter
+  private
+  def cpp_to_ruby(typeName, ptr)
+    case typeName
+      when 'QString' then QString.new(ptr, borrowed: true).to_str
+      when 'int' then ptr.read_int
+      when 'double' then ptr.read_double
+      else raise "Type #{typeName} not implemented"
+    end
+  end
+end
+
 class CppObject
   attr_accessor :ptr
   alias to_ptr ptr
@@ -91,6 +103,8 @@ class QQuickView < CppObject
 end
 
 class QQuickItem < CppObject
+  include TypeConverter
+
   def initialize(ptr_or_parent=nil, params={})
     @ptr = if ptr_or_parent.kind_of?(FFI::Pointer)
       ptr_or_parent
@@ -105,13 +119,10 @@ class QQuickItem < CppObject
   end
 
   def property(name)
-    qvar = C.QQuickItem_property(@ptr, name)
-    case typeName=C.QVariant_typeName( qvar )
-      when 'QString' then QString.new(qvar, borrowed: true).to_str
-      when 'QColor' then QString.new(C.QVariant_toQString( qvar )).to_str
-      when 'int' then C.QVariant_toInt( qvar )
-      when 'double' then C.QVariant_toDouble( qvar )
-      else raise "QVariant type #{typeName} not implemented"
+    qvar = QVariant.new C.QQuickItem_property(@ptr, name)
+    case typename=qvar.typeName
+      when 'QColor' then qvar.to_str
+      else cpp_to_ruby(typename, qvar.ptr)
     end
   end
 
@@ -187,7 +198,37 @@ class QString < CppObject
   alias to_s to_str
 end
 
+class QVariant < CppObject
+  def initialize(ptr=nil, params={})
+    @ptr = if ptr.kind_of?(FFI::Pointer)
+      ptr
+    else
+      C.QVariant_new
+    end
+    on_delete(:QVariant_delete) unless params[:borrowed]
+  end
+
+  def typeName
+    C.QVariant_typeName(@ptr)
+  end
+
+  def to_str
+    QString.new(C.QVariant_toQString(@ptr)).to_str
+  end
+  alias to_s to_str
+
+  def to_i
+    C.QVariant_toInt(@ptr)
+  end
+
+  def to_f
+    C.QVariant_toDouble(@ptr)
+  end
+end
+
 class RubyQObject < CppObject
+  include TypeConverter
+
   def initialize(ptr_or_parent=nil, params={})
     @ptr = if ptr_or_parent.kind_of?(FFI::Pointer)
       ptr_or_parent
@@ -203,12 +244,7 @@ class RubyQObject < CppObject
       argtypes = pargtypes.get_array_of_string(0, argc)
       args = argtypes.map.with_index(1) do |argtype, argi|
         offset = argi * FFI.type_size(:pointer)
-        case argtype
-          when 'QString' then QString.new(pargs.get_pointer(offset), borrowed: true).to_str
-          when 'int' then pargs.get_pointer(offset).read_int
-          when 'double' then pargs.get_pointer(offset).read_double
-          else raise "Parameter type #{argtype} not implemented"
-        end
+        cpp_to_ruby(argtype, pargs.get_pointer(offset))
       end
       yield QQuickItem.new(sender, borrowed: true), *args
     end
