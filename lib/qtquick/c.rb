@@ -30,7 +30,7 @@ module C
     cpp.include 'QtQuick/QQuickItem'
     cpp.include 'QtQml/QQmlContext'
 
-    cpp.libraries 'QtCore', 'QtQml', 'QtGui', 'QtQuick', 'QtWidgets'
+    cpp.libraries 'Qt5Core', 'Qt5Qml', 'Qt5Gui', 'Qt5Quick', 'Qt5Widgets'
 
     cpp.raw IO.read(File.expand_path('../RubyQObject.h', __FILE__))
     cpp.raw IO.read(File.expand_path('../RubyQObject.cpp', __FILE__))

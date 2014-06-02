@@ -16,12 +16,17 @@ RbConfig::CONFIG['CPP'].gsub!( RbConfig::CONFIG['CC'], RbConfig::CONFIG['CXX'] )
   have_header(header) || raise("header not found: #{header}")
 end
 
-['QtCore', 'QtQml', 'QtWidgets', 'QtGui', 'QtQuick'].each do |lib|
+['Qt5Core', 'Qt5Qml', 'Qt5Widgets', 'Qt5Gui', 'Qt5Quick'].each do |lib|
   have_library(lib) || raise("library not found: #{lib}")
 end
 
+# find_type of mkmf conflicts with FFI
+class ::Object
+  undef_method(:find_type)
+end
+
 ENV['CFLAGS'] = "-I#{qt_inc}"
-ENV['LDFLAGS'] = "-L#{qt_lib}"
+ENV['LDFLAGS'] = "-Wl,-rpath,#{qt_lib} -L#{qt_lib}"
 begin
   load File.expand_path('../../../lib/qtquick/c.rb', __FILE__)
 rescue CompilationError => err
